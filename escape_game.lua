@@ -15,6 +15,8 @@ local bg = {
 local player = gfx.image.new("images/escape_game/road_game_player.png")
 local car = gfx.image.new("images/escape_game/road_game_car.png")
 
+local gameStart = 1
+local framesBeforeGameStart = 40
 local imageCounter = 1 
 local frameCounter = 1
 local carWiggle = 1 
@@ -22,7 +24,7 @@ local carWiggle = 1
 local pX = 10
 local pY = 75
 
-local speed = 5
+local speed = 12
 local cars = {}
 
 local gameOver = false
@@ -63,7 +65,7 @@ function trafficTimer()
     for i = 1, #cars do
         traffic(cars[i])
 
-        if cars[i].x > -120 then
+        if cars[i].x > -100 then
             allGone = false
         end
     end
@@ -98,7 +100,6 @@ function playdate.update()
 
     if gameOver == true then
         gfx.clear()
-        gfx.drawText("GAME OVER", 160, 110)
         
         return
     end
@@ -111,5 +112,9 @@ function playdate.update()
     player:draw(pX, pY)
 
     animationPacing()
-    trafficTimer()
+    if gameStart == framesBeforeGameStart then
+        trafficTimer()
+    else
+        gameStart += 1
+    end
 end
