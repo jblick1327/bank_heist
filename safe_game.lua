@@ -3,7 +3,6 @@ import "CoreLibs/ui"
 import "CoreLibs/easing"
 import "CoreLibs/crank"
 
-
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 local ps <const> = playdate.sound
@@ -40,12 +39,14 @@ local faceButton = {
     gfx.image.new("images/safe_game/a.png"),
     gfx.image.new("images/safe_game/b.png")
 }
+
 local dButton = {
     gfx.image.new("images/safe_game/left.png"),
     gfx.image.new("images/safe_game/up.png"),
     gfx.image.new("images/safe_game/right.png"),
     gfx.image.new("images/safe_game/down.png")
 }
+
 local arrow = {
     gfx.image.new("images/safe_game/c.png"),
     gfx.image.new("images/safe_game/cc.png")
@@ -58,22 +59,37 @@ local count = 0
 local safeCracks = 0
 local safeCracksToWin = 3
 
+-- timer
+local timerLength = 25
+local startTime = pd.getCurrentTimeMilliseconds()
 
-local spotRange = 5
-local randomSpot = math.random((0 + spotRange), (359 - spotRange))
+local gameOver = false
+local fail = false
+local score = 0
+local timeScore = 0
+local wait = 60
+local waitCounter = 0
+
+local spotRange = 10
+local randomSpot = math.random(spotRange, 359 - spotRange)
 local spotHigh = randomSpot + spotRange
 local spotLow = randomSpot - spotRange
 
 local randomDirection = math.random(1, 4)
+
 local direction = {
-    playdate.kButtonLeft, playdate.kButtonUp, 
-    playdate.kButtonRight, playdate.kButtonDown
-}
-local randomButton = math.random(1, 2)
-local button = {
-    playdate.kButtonA, playdate.kButtonB
+    playdate.kButtonLeft,
+    playdate.kButtonUp,
+    playdate.kButtonRight,
+    playdate.kButtonDown
 }
 
+local randomButton = math.random(1, 2)
+
+local button = {
+    playdate.kButtonA,
+    playdate.kButtonB
+}
 
 local function randomBool()
     return math.random() < 0.5
@@ -81,54 +97,85 @@ end
 
 local clockOrCounterClock = randomBool()
 
+function timerLimit()
+    local currentTime = pd.getCurrentTimeMilliseconds()
+    local elapsedTime = (currentTime - startTime) / 1000
+
+    local timeLeft = math.ceil(timerLength - elapsedTime)
+
+    if timeLeft < 0 then
+        timeLeft = 0
+    end
+
+    timeScore = timeLeft
+
+    gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+    gfx.drawText("Time: " .. timeLeft, 330, 15)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+
+    if timeLeft <= 0 then
+        fail = true
+        gameOver = true
+    end
+end
+
 function turnKnobAnimation()
     local change, acceleratedChange = pd.getCrankChange()
     local absoluteChange = math.min(20, math.abs(change))
-    local tickSpeed = math.max(2, 7 - (absoluteChange/4))
+    local tickSpeed = math.max(2, 7 - (absoluteChange / 4))
 
     if acceleratedChange > 0 then
         if count > tickSpeed then 
             local ticks = pd.getCrankTicks(20)
+
             if ticks ~= 0 then
                 playTumblerClick()
             end
+
             bg_HandC2:draw(0, 0)
             count += 1
-            if count >= (tickSpeed*2) then
+
+            if count >= (tickSpeed * 2) then
                 count = 0
             end
         else
             bg_HandC:draw(0, 0)
             count += 1
         end    
+
         clockwise = true
 
     elseif acceleratedChange < 0 then
         if count > tickSpeed then 
             local ticks = pd.getCrankTicks(20)
+
             if ticks ~= 0 then
                 playTumblerClick()
             end
+
             bg_HandCC2:draw(0, 0)
             count += 1
-            if count >= (tickSpeed*2) then
+
+            if count >= (tickSpeed * 2) then
                 count = 0
             end
         else
             bg_HandCC:draw(0, 0)
             count += 1
         end 
+
         clockwise = false 
 
     elseif clockwise then
         bg_HandC:draw(0, 0)
-    elseif not clockwise then
+    else
         bg_HandCC:draw(0, 0)
     end
 end
 
 function pd.update() 
     gfx.clear()
+
     turnKnobAnimation()
 
     if intro ~= introFrameCount then
@@ -136,8 +183,29 @@ function pd.update()
         intro += 1
     end
 
-    --for debug
-    --gfx.clear()
+    
+
+    if gameOver then
+        gfx.clear()
+
+        if fail then
+            score = 1 + safeCracks
+            gfx.drawText("Score: " .. score, 150, 130)
+        else
+            score = 5 + timeScore
+            bg_Win:draw(0, 0)
+            if waitCounter >= wait then
+                gfx.clear()
+                gfx.drawText("Score: " .. score, 150, 130)
+            end
+        waitCounter += 1
+        end
+        
+        return score
+    end
+
+    timerLimit()
+
     if clockOrCounterClock then
         arrow[1]:draw(0, 0)
     else
@@ -146,32 +214,28 @@ function pd.update()
 
     local crankPosition = playdate.getCrankPosition()
 
-    if crankPosition >= spotLow and crankPosition <= spotHigh and clockOrCounterClock == clockwise then
+    if crankPosition >= spotLow 
+    and crankPosition <= spotHigh 
+    and clockOrCounterClock == clockwise then
+
         gfx.drawText("Click", 160, 170)
         dButton[randomDirection]:draw(255, 157)
         faceButton[randomButton]:draw(340, 170)
 
         if playdate.buttonJustPressed(direction[randomDirection]) 
         and playdate.buttonJustPressed(button[randomButton]) then
+
             clockOrCounterClock = not clockOrCounterClock
 
             randomDirection = math.random(1, 4)
             randomButton = math.random(1, 2)
+
             safeCracks += 1
         end
     end
 
     if safeCracks >= safeCracksToWin then
-        gfx.clear()
-        bg_Win:draw(0, 0)
-        return
-    
+        fail = false
+        gameOver = true
     end
-
-     --for debug
-    --gfx.drawText(crankPosition, 160, 110)
-    --gfx.drawText(randomSpot, 160, 130)
-    --gfx.drawText(tostring(clockOrCounterClock), 160, 150)
 end
-
-

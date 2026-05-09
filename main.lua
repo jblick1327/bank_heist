@@ -2,6 +2,9 @@
 -- Game: Bank Heist
 
 import "CoreLibs/graphics"
+import "CoreLibs/ui"
+import "CoreLibs/easing"
+import "CoreLibs/crank"
 
 --#region CONSTANTS AND VARIABLES
 
@@ -63,6 +66,7 @@ local radarBackgroundImage = {
     for i, img in ipairs(radarBackgroundImage) do
         assert(img, "Could not load background image for Tune the Radar mini-game frame " .. i)
     end
+    
 local radarWaveImage = {
     gfx.image.new("radar_waveform1.pdi"),
     gfx.image.new("radar_waveform2.pdi"),

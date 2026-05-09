@@ -27,7 +27,37 @@ local pY = 75
 local speed = 12
 local cars = {}
 
+-- timer
+local timerLength = 5 -- seconds
+local startTime = pd.getCurrentTimeMilliseconds()
+
 local gameOver = false
+local fail = false
+local score = 0
+local timeScore = 0
+
+function timerLimit()
+    local currentTime = pd.getCurrentTimeMilliseconds()
+    local elapsedTime = (currentTime - startTime) / 1000
+
+    local timeLeft = math.ceil(timerLength - elapsedTime)
+
+    if timeLeft < 0 then
+        timeLeft = 0
+    end
+
+    timeScore = timeLeft
+
+    -- draw timer after background so it is visible
+    gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+    gfx.drawText("Time Left: " .. timeLeft, 280, 10)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+
+    if timeLeft <= 0 then
+        fail = false
+        gameOver = true
+    end
+end
 
 function spawnCars()
     local tempLanes = {180, 100, 20}
@@ -46,9 +76,11 @@ function checkCollision(carObj)
     local carW, carH = car:getSize()
 
     if pX < carObj.x + carW and
-       pX + (playerW-175) > carObj.x and
-       pY < carObj.y + (carH-20) and
-       pY + (playerH-40) > carObj.y then
+       pX + (playerW - 175) > carObj.x and
+       pY < carObj.y + (carH - 20) and
+       pY + (playerH - 40) > carObj.y then
+
+        fail = true
         gameOver = true
     end
 end
@@ -98,11 +130,21 @@ function playdate.update()
 
     bg[imageCounter]:draw(0, 0)
 
+
     if gameOver == true then
         gfx.clear()
-        
-        return
+        if fail then
+            score = 0 + (timerLength - timeScore)
+        else
+            score = 5 + (timerLength - timeScore)
+        end
+
+        gfx.drawText("Score: " .. score, 150, 130)
+
+        return score
     end
+
+    timerLimit()
     
     local acceleratedChange = pd.getCrankChange()
     
@@ -112,6 +154,7 @@ function playdate.update()
     player:draw(pX, pY)
 
     animationPacing()
+
     if gameStart == framesBeforeGameStart then
         trafficTimer()
     else
