@@ -15,9 +15,9 @@ local HAND_PIVOT_X_PX = 114
 local HAND_PIVOT_Y_PX = 18
 
 -- Circle centre coords
-local ORBIT_CENTER_X  = SCREEN_WIDTH_PX / 2
-local ORBIT_CENTER_Y  = SCREEN_HEIGHT_PX / 2
-local ORBIT_RADIUS = ORBIT_CENTER_Y * 0.8
+local ORBIT_CENTER_X  = SCREEN_WIDTH_PX / 2.1
+local ORBIT_CENTER_Y  = SCREEN_HEIGHT_PX / 1.88
+local ORBIT_RADIUS = ORBIT_CENTER_Y * 0.92
 
 -- SECRET SAUCE (larger = subtler juj)
 local HAND_ROTATION_SCALE = 40
@@ -52,6 +52,7 @@ fail_background_sprite:setZIndex(ZINDEX_FAIL)
 
 hand_sprite:add()
 background_sprite:add()
+fail_background_sprite:add()
 
 
 -- ── Audio ─────────────────────────────────────────────────────────────────
@@ -170,7 +171,44 @@ local degrees_last_frame = 0
 local FORGIVENESS_DEG_PER_FRAME = 5 --plus or minus
 
 local is_consistent = true
+
+-- timer
+local timerLength = 10 -- seconds
+local startTime = playdate.getCurrentTimeMilliseconds()
+
+local gameOver = false
+local fail = false
+local score = 0
+local timeScore = 0
+
+local wait = 60
+local waitCounter = 0
+
+function timerLimit()
+    local currentTime = playdate.getCurrentTimeMilliseconds()
+    local elapsedTime = (currentTime - startTime) / 1000
+
+    local timeLeft = math.ceil(timerLength - elapsedTime)
+
+    if timeLeft < 0 then
+        timeLeft = 0
+    end
+
+    timeScore = timeLeft
+
+    playdate.graphics.setImageDrawMode(playdate.graphics.kDrawModeFillWhite)
+    playdate.graphics.drawText("Time: " .. timeLeft, 330, 15)
+    playdate.graphics.setImageDrawMode(playdate.graphics.kDrawModeCopy)
+
+    if timeLeft <= 0 then
+        fail = true
+        gameOver = true
+    end
+end
+
 function playdate.update()
+    playdate.graphics.clear()
+    --updateTrace()
 
 
     local degrees_this_frame = playdate.getCrankChange()
@@ -185,8 +223,22 @@ function playdate.update()
 
     if is_consistent then print("GOOD") else print("BAD") end
 
-    if not is_consistent then
+    if not is_consistent or fail then
+        fail = true
+        score = 1
+
         fail_background_sprite:setZIndex(ZINDEX_BACKGROUND + 1)
+
+        playdate.graphics.sprite.update()
+
+        if waitCounter >= wait then
+            playdate.graphics.clear()
+            playdate.graphics.drawText("Score: " .. score, 150, 130)
+            return score
+        end
+
+        waitCounter += 1
+        return
     end
     hand_sprite:moveTo(
         ORBIT_CENTER_X + math.sin(crank_radians) * ORBIT_RADIUS,
@@ -195,5 +247,10 @@ function playdate.update()
     hand_sprite:setRotation(math.sin(crank_radians) * (180 / HAND_ROTATION_SCALE))
 
 
+
+
+
     playdate.graphics.sprite.update()
+    
+    timerLimit()
 end
