@@ -1449,6 +1449,7 @@ function playdate.update()
 
     -- 3. Transitions
     if escapeGameInstance:isComplete() then
+        score = score + escapeGameInstance.score
         escapeGameInstance:cleanup()
         escapeGameInstance = nil
         state = "cutscene5"
