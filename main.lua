@@ -3,6 +3,7 @@
 
 import "CoreLibs/graphics"
 
+local sp = import "songPlayer"
 
 local GlassGameModule = import "minigames/glass_game"
 local glassGameInstance = nil
@@ -29,6 +30,8 @@ local screenHeight <const> = 240
 local rand = math.random
 
 local state = "credits"
+
+
 local score = 0
 local levels = {
     {
@@ -1472,6 +1475,7 @@ function playdate.AButtonDown()
     if state == "menu" then
         resetLevelSelect()
         state = "levelselect"
+        sp.play(1)
     elseif state == "levelselect" then
         local level = levels[levelSelectIndex]
         if level.locked then
@@ -1480,6 +1484,7 @@ function playdate.AButtonDown()
             if levelSelectIndex == 1 then
                 resetTitleScene()
                 state = "titleTransition"
+
             end
         end
 
@@ -1501,6 +1506,7 @@ function playdate.AButtonDown()
     ---- Text Scene 3 ----
     elseif state == "textscene3" then
         state = "level1part1"
+        sp.play(2)
         resetLevel1Part1()
 
 -- PART 2
@@ -1522,22 +1528,26 @@ function playdate.AButtonDown()
 
     elseif state == "textscene51" then
         state = "level1part3"
+        sp.stop()
 
     ---- Level 1 - Tune the Radar mini-game ----
 
     ---- Text Scene 6 ----
     elseif state == "textscene6" then
         state = "cutscene3"
+        sp.play(4)
         resetCutsceneReveal()
 
 -- PART 4
     ---- Cutscene 3 ----
     elseif state == "cutscene3" then
         state = "textscene7"
+        
 
     ---- Text Scene 7 ----
     elseif state == "textscene7" then
         state = "level1part4"
+        
 
     ---- Level 1 - Rope Rappel mini-game ----
 
@@ -1562,6 +1572,7 @@ function playdate.AButtonDown()
     ---- Text Scene 10 ----
     elseif state == "textscene10" then
         state = "level1part7"
+        sp.play(3)
         
 
     ---- Level 1 - Escape the Van mini-game ----
