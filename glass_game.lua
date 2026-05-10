@@ -11,13 +11,13 @@ local FAIL_PATH = "images/glass_game/glass_game_fail.png"
 -- ── Hand Sprite ───────────────────────────────────────────────────────────────
 
 -- Pixel coords of the pivot point within the hand image
-local HAND_PIVOT_X_PX = 114
-local HAND_PIVOT_Y_PX = 18
+local HAND_PIVOT_X_PX = 125
+local HAND_PIVOT_Y_PX = 9
 
 -- Circle centre coords
-local ORBIT_CENTER_X  = SCREEN_WIDTH_PX / 2.1
-local ORBIT_CENTER_Y  = SCREEN_HEIGHT_PX / 1.88
-local ORBIT_RADIUS = ORBIT_CENTER_Y * 0.92
+local ORBIT_CENTER_X  = SCREEN_WIDTH_PX / 2
+local ORBIT_CENTER_Y  = SCREEN_HEIGHT_PX / 2
+local ORBIT_RADIUS = ORBIT_CENTER_Y * 0.85
 
 -- SECRET SAUCE (larger = subtler juj)
 local HAND_ROTATION_SCALE = 40
@@ -33,6 +33,7 @@ local ZINDEX_FAIL = -2000
 local background_image = playdate.graphics.image.new(BG_PATH)
 local fail_background_image = playdate.graphics.image.new(FAIL_PATH)
 local hand_image       = playdate.graphics.image.new(HAND_PATH)
+local trail_image = playdate.graphics.image.new(SCREEN_WIDTH_PX, SCREEN_HEIGHT_PX, playdate.graphics.kColorClear)
 
 local hand_width, hand_height = hand_image:getSize()
 
@@ -50,10 +51,15 @@ fail_background_sprite:setCenter(0,0)
 fail_background_sprite:moveTo(0,0)
 fail_background_sprite:setZIndex(ZINDEX_FAIL)
 
+local trail_sprite = playdate.graphics.sprite.new(trail_image)
+trail_sprite:setCenter(0,0)
+trail_sprite:moveTo(0,0)
+trail_sprite:setZIndex(ZINDEX_BACKGROUND + 1)
+
 hand_sprite:add()
 background_sprite:add()
 fail_background_sprite:add()
-
+trail_sprite:add()
 
 -- ── Audio ─────────────────────────────────────────────────────────────────
 
@@ -165,15 +171,25 @@ local function playPopOut()
         end
     end)
 end
+
+--------------
+
+local shatterPlayer = playdate.sound.sampleplayer.new("Source/shatter.wav")
+
+
 ------
 
 local degrees_last_frame = 0
-local FORGIVENESS_DEG_PER_FRAME = 5 --plus or minus
+local FORGIVENESS_DEG_PER_FRAME = 6
 
 local is_consistent = true
+local stopped = false
+
+local lost = false
+local won = false
 
 -- timer
-local timerLength = 10 -- seconds
+local timerLength = 12 -- seconds
 local startTime = playdate.getCurrentTimeMilliseconds()
 
 local gameOver = false
@@ -206,27 +222,32 @@ function timerLimit()
     end
 end
 
+local accum = 0
+local other_fail = false
+
 function playdate.update()
-    playdate.graphics.clear()
-    --updateTrace()
-
-
+    updateTrace()
     local degrees_this_frame = playdate.getCrankChange()
-    print(degrees_this_frame)
+    accum += degrees_this_frame
 
     local crank_degrees = playdate.getCrankPosition()
     local crank_radians = math.rad(crank_degrees)
 
-    is_consistent = math.abs(degrees_this_frame - degrees_last_frame) <= FORGIVENESS_DEG_PER_FRAME
+    if math.abs(accum) >= 2 then
+        is_consistent = degrees_last_frame == 0 or math.abs(degrees_this_frame - degrees_last_frame) <= FORGIVENESS_DEG_PER_FRAME
+        stopped = degrees_this_frame == 0 and degrees_last_frame == 0
+    end
 
+    other_fail = stopped or not is_consistent
     degrees_last_frame = degrees_this_frame
 
-    if is_consistent then print("GOOD") else print("BAD") end
+    lost = fail or other_fail
 
-    if not is_consistent or fail then
+    if lost then
         fail = true
         score = 1
 
+        shatterPlayer:play()
         fail_background_sprite:setZIndex(ZINDEX_BACKGROUND + 1)
 
         playdate.graphics.sprite.update()
@@ -240,17 +261,32 @@ function playdate.update()
         waitCounter += 1
         return
     end
-    hand_sprite:moveTo(
-        ORBIT_CENTER_X + math.sin(crank_radians) * ORBIT_RADIUS,
-        ORBIT_CENTER_Y - math.cos(crank_radians) * ORBIT_RADIUS
-    )
+
+    won = math.abs(accum) >= 360 and not lost
+
+    if won then 
+        playPopOut()
+    end
+    local new_x = ORBIT_CENTER_X + math.sin(crank_radians) * ORBIT_RADIUS
+    local new_y = ORBIT_CENTER_Y - math.cos(crank_radians) * ORBIT_RADIUS
+
+    hand_sprite:moveTo(new_x,new_y)
     hand_sprite:setRotation(math.sin(crank_radians) * (180 / HAND_ROTATION_SCALE))
+
+    playdate.graphics.pushContext(trail_image)
+        playdate.graphics.setColor(playdate.graphics.kColorWhite)
+        playdate.graphics.drawPixel(new_x,new_y)
+    playdate.graphics.popContext()
+    trail_sprite:markDirty()
 
 
 
 
 
     playdate.graphics.sprite.update()
+
+        print("hand size:", hand_width, hand_height)
     
     timerLimit()
+    playdate.timer.updateTimers()
 end
