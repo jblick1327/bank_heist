@@ -30,8 +30,9 @@ function SafeGame.new()
     -- -------------------------------------------------------------------------
     -- IMAGES & STATE
     -- -------------------------------------------------------------------------
-    self.bg_noHand = gfx.image.new("images/safe_game/safe_game")
-    self.bg_hand = gfx.image.new("images/safe_game/safe_game_handc")
+    self.bg_noHand = gfx.image.new("images/safe_game/safe_game_handc")
+    self.bg_hand = gfx.image.new("images/safe_game/safe_game_handc2")
+    self.bg_win = gfx.image.new("images/safe_game/safe_game_win")
     self.arrow = {
         gfx.image.new("images/safe_game/c"),
         gfx.image.new("images/safe_game/cc")
@@ -149,8 +150,9 @@ function SafeGame:draw()
 
     if self.gameOver then
         gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-        gfx.drawTextAligned("* SAFE CRACKED *", 200, 110, kTextAlignment.center)
+        
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        self.bg_win:draw(0, 0)
         return
     end
 
@@ -163,10 +165,12 @@ function SafeGame:draw()
 
     local crankPosition = pd.getCrankPosition()
     if crankPosition >= self.spotLow and crankPosition <= (self.spotLow + 80) then
-        gfx.drawTextAligned("! CLICK !", 200, 185, kTextAlignment.center)
+        --gfx.drawTextAligned("! CLICK !", 200, 185, kTextAlignment.center)
         if self.dButton[self.randomDirection] then self.dButton[self.randomDirection]:draw(255, 157) end
         if self.faceButton[self.randomButton] then self.faceButton[self.randomButton]:draw(340, 170) end
     end
+
+    self:timerLimit()
 end
 
 -- -------------------------------------------------------------------------
