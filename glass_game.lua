@@ -1,4 +1,6 @@
 import "CoreLibs/graphics"
+import "CoreLibs/timer"
+
 local SCREEN_WIDTH_PX = 400
 local SCREEN_HEIGHT_PX = 240
 
@@ -49,7 +51,7 @@ background_sprite:setZIndex(ZINDEX_BACKGROUND)
 local fail_background_sprite = playdate.graphics.sprite.new(fail_background_image)
 fail_background_sprite:setCenter(0,0)
 fail_background_sprite:moveTo(0,0)
-fail_background_sprite:setZIndex(ZINDEX_FAIL)
+fail_background_sprite:setZIndex(ZINDEX_FAIL)  -- initially very low
 
 local trail_sprite = playdate.graphics.sprite.new(trail_image)
 trail_sprite:setCenter(0,0)
@@ -104,10 +106,14 @@ traceFilter2:setFrequency(centerPitch)
 traceFilter2:setResonance(resonance)
 
 traceSynth:setADSR(0.02, 0, 1.0, 0.05)
-traceSynth:playNote(100, 1) 
+traceSynth:playNote(100, nil)  -- fix: sustain indefinitely, volume controlled by setVolume
 traceSynth:setVolume(0)
 
+-- Store the crank change from the callback (to avoid calling getCrankChange again)
+local crankChangeThisFrame = 0
+
 function playdate.cranked(change, accelerated)
+    crankChangeThisFrame = change          -- store for use in update()
     local speed = math.abs(change)
     local normSpeed = math.min(speed / maxSpeedForPitch, 1)
 
@@ -150,9 +156,15 @@ local discSynths = {
     sound.synth.new(sound.kWaveSine),
 }
 local discChannel = sound.channel.new()
+for _, sine in ipairs(discSynths) do
+    discChannel:addSource(sine)
+end
 
+local alreadyWon = false    -- flag to prevent win sound spam
 
 local function playPopOut()
+    if alreadyWon then return end   -- call only once
+    alreadyWon = true
 
     local ratios = {1.0, 2.32, 4.25}
     local decays = {1.0, 0.25, 0.10}
@@ -162,9 +174,8 @@ local function playPopOut()
     crackFilter:setResonance(0.6)
     crackSynth:setADSR(0.12, 0.06, 0, 0, 0)
     crackSynth:playNote(100, 0.4, 5)
-    
-    playdate.timer.performAfterDelay(120, function() 
-        
+
+    playdate.timer.performAfterDelay(120, function()
         for i = 1, 3 do
             discSynths[i]:setADSR(0.05, decays[i], 0, 0, 1)
             discSynths[i]:playNote(f * ratios[i], gains[i]*0.2, 1)
@@ -174,8 +185,7 @@ end
 
 --------------
 
-local shatterPlayer = playdate.sound.sampleplayer.new("Source/shatter.wav")
-
+local shatterPlayer = playdate.sound.sampleplayer.new("shatter.wav")
 
 ------
 
@@ -192,13 +202,14 @@ local won = false
 local timerLength = 12 -- seconds
 local startTime = playdate.getCurrentTimeMilliseconds()
 
-local gameOver = false
+local gameOver = false     -- true when the game is fully finished
 local fail = false
 local score = 0
 local timeScore = 0
 
 local wait = 60
 local waitCounter = 0
+local hasPlayedFailSound = false   -- ensures shatter plays only once
 
 function timerLimit()
     local currentTime = playdate.getCurrentTimeMilliseconds()
@@ -223,12 +234,25 @@ function timerLimit()
 end
 
 local accum = 0
-local other_fail = false
 
 function playdate.update()
+    -- If the game is over, just draw the final screen and stop everything else
+    if gameOver then
+        playdate.timer.updateTimers()
+        playdate.graphics.clear()
+        playdate.graphics.setColor(playdate.graphics.kColorWhite)
+        if fail then
+            playdate.graphics.drawText("Score: " .. score, 150, 130)
+        else
+            -- win screen
+            playdate.graphics.drawText("You Win! Score: " .. score, 130, 130)
+        end
+        return
+    end
+
     updateTrace()
-    local degrees_this_frame = playdate.getCrankChange()
-    accum += degrees_this_frame
+    local degrees_this_frame = crankChangeThisFrame   -- use stored value from callback
+    accum = accum + degrees_this_frame
 
     local crank_degrees = playdate.getCrankPosition()
     local crank_radians = math.rad(crank_degrees)
@@ -238,35 +262,41 @@ function playdate.update()
         stopped = degrees_this_frame == 0 and degrees_last_frame == 0
     end
 
-    other_fail = stopped or not is_consistent
+    fail = fail or (stopped or not is_consistent)
     degrees_last_frame = degrees_this_frame
 
-    lost = fail or other_fail
+    lost = fail
 
     if lost then
         fail = true
-        score = 1
+        score = 1   -- original design
 
-        shatterPlayer:play()
-        fail_background_sprite:setZIndex(ZINDEX_BACKGROUND + 1)
-
+        if not hasPlayedFailSound then
+            shatterPlayer:play()
+            hasPlayedFailSound = true
+        end
+        
+        traceSynth:setVolume(0)
+        -- Bring fail image above the trail (ZINDEX_BACKGROUND+2 = -998, trail is -999)
+        fail_background_sprite:setZIndex(ZINDEX_BACKGROUND + 2)
         playdate.graphics.sprite.update()
 
+        waitCounter = waitCounter + 1
         if waitCounter >= wait then
-            playdate.graphics.clear()
-            playdate.graphics.drawText("Score: " .. score, 150, 130)
-            return score
+            gameOver = true   -- stop the game; the draw-segment at the top will handle the final screen
         end
-
-        waitCounter += 1
         return
     end
 
     won = math.abs(accum) >= 360 and not lost
 
-    if won then 
+    if won and not alreadyWon then
+        score = timeScore      -- use the remaining time as the winning score
         playPopOut()
+        gameOver = true        -- freeze the game in a winning state
+        return                 -- next frame will draw the win screen
     end
+
     local new_x = ORBIT_CENTER_X + math.sin(crank_radians) * ORBIT_RADIUS
     local new_y = ORBIT_CENTER_Y - math.cos(crank_radians) * ORBIT_RADIUS
 
@@ -279,14 +309,9 @@ function playdate.update()
     playdate.graphics.popContext()
     trail_sprite:markDirty()
 
-
-
-
-
     playdate.graphics.sprite.update()
 
-        print("hand size:", hand_width, hand_height)
     
     timerLimit()
-    playdate.timer.updateTimers()
+
 end
