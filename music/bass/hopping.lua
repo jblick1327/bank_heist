@@ -1,4 +1,4 @@
-local hopping = 
+return
 {
   { step = 1, note = 51, length = 48, velocity = 0.62 },
   { step = 97, note = 42, length = 48, velocity = 0.62 },

@@ -1,4 +1,4 @@
-local lead =
+return
 {
   { step = 1, note = 73, length = 31, velocity = 0.78 },
   { step = 32, note = 69, length = 17, velocity = 0.78 },

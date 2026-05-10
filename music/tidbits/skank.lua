@@ -1,4 +1,4 @@
-local skank =
+return
 {
   { step = 49, note = 73, length = 48, velocity = 0.85 },
   { step = 49, note = 86, length = 48, velocity = 0.85 },

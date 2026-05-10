@@ -1,5 +1,4 @@
-local walking =
-
+return
 {
   { step = 1, note = 51, length = 48, velocity = 0.76 },
   { step = 49, note = 35, length = 48, velocity = 0.76 },

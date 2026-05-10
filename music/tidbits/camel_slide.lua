@@ -1,5 +1,4 @@
-local camel_slide = 
-
+return
 {
   { step = 145, note = 87, length = 128, velocity = 0.86 },
   { step = 209, note = 86, length = 160, velocity = 0.86 },

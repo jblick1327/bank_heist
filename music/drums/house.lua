@@ -1,4 +1,5 @@
-local house = {
+return 
+{
   { step = 1, note = 41, length = 192, velocity = 0.78 },
   { step = 49, note = 46, length = 48, velocity = 0.78 },
   { step = 97, note = 38, length = 48, velocity = 0.78 },
